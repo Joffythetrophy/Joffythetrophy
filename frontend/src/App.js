@@ -143,11 +143,6 @@ function WalletUI() {
     if (!publicKey || !crtMint) return;
     try {
       setIsLoading(true);
-  // ==== CRT Converter (Jupiter) ====
-  const [swapFrom, setSwapFrom] = useState("CRT");
-  const [swapTo, setSwapTo] = useState("USDC");
-  const [swapAmt, setSwapAmt] = useState("1");
-  const [quote, setQuote] = useState(null);
 
   const mintFor = (sym) => {
     if (sym === "CRT") return crtMint; // your mint
