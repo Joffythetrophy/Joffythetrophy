@@ -468,6 +468,49 @@ function WalletUI() {
           {error && <div className="error">{error}</div>}
         </Card>
       )}
+
+      <Card className="card">
+        <h3 className="mb-2">CRT Converter (Jupiter)</h3>
+        <div className="grid">
+          <div>
+            <Label>From</Label>
+            <Select value={swapFrom} onValueChange={setSwapFrom}>
+              <SelectTrigger className="w-full"><SelectValue placeholder="Token" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="CRT">CRT</SelectItem>
+                <SelectItem value="USDC">USDC</SelectItem>
+                <SelectItem value="SOL">SOL</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>To</Label>
+            <Select value={swapTo} onValueChange={setSwapTo}>
+              <SelectTrigger className="w-full"><SelectValue placeholder="Token" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="CRT">CRT</SelectItem>
+                <SelectItem value="USDC">USDC</SelectItem>
+                <SelectItem value="SOL">SOL</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="swapAmt">Amount</Label>
+            <Input id="swapAmt" type="number" step="0.0001" value={swapAmt} onChange={(e) => setSwapAmt(e.target.value)} />
+          </div>
+          <div className="self-end">
+            <div className="row">
+              <Button onClick={fetchQuote} disabled={!connected || isLoading}>Get Quote</Button>
+              <Button onClick={doSwap} disabled={!connected || !quote}>Swap</Button>
+            </div>
+          </div>
+        </div>
+        {quote && (
+          <div style={{ marginTop: 12 }} className="muted">
+            Best route found. Est. out: {Number(quote.outAmount) / 10**6}
+          </div>
+        )}
+      </Card>
     </>
   );
 }
