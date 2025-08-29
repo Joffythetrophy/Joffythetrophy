@@ -353,6 +353,7 @@ function WalletUI() {
           <h2>Wallet</h2>
           <WalletMultiButton className="wallet-btn" />
         </div>
+        <div className="muted" style={{fontSize:12}}>Wallet: {diagnostics.walletName} • {diagnostics.addressShort} • {diagnostics.connected ? 'Connected' : 'Not connected'}</div>
         {connected && publicKey ? (
           <div className="wallet-info">
             <div>Connected: {wallet?.adapter?.name}</div>
