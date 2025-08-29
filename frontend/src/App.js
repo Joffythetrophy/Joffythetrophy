@@ -222,25 +222,25 @@ function App() {
   }, []);
 
   return (
-    <div className="App"&gt;
-      <div className="container"&gt;
-        <header className="header"&gt;
-          <div&gt;
-            <h1 className="title"&gt;Solana Devnet Onboarding</h1&gt;
-            <p className="subtitle"&gt;Connect wallet • Detect CRT • Send SOL</p&gt;
-          </div&gt;
-        </header&gt;
-        <ConnectionProvider endpoint={endpoint}&gt;
-          <WalletProvider wallets={wallets} autoConnect&gt;
-            <WalletModalProvider&gt;
-              <main className="main"&gt;
-                <WalletUI /&gt;
-              </main&gt;
-            </WalletModalProvider&gt;
-          </WalletProvider&gt;
-        </ConnectionProvider&gt;
-      </div&gt;
-    </div&gt;
+    <div className="App">
+      <div className="container">
+        <header className="header">
+          <div>
+            <h1 className="title">Solana Devnet Onboarding</h1>
+            <p className="subtitle">Connect wallet • Detect CRT • Send SOL</p>
+          </div>
+        </header>
+        <ConnectionProvider endpoint={endpoint}>
+          <WalletProvider wallets={wallets} autoConnect>
+            <WalletModalProvider>
+              <main className="main">
+                <WalletUI />
+              </main>
+            </WalletModalProvider>
+          </WalletProvider>
+        </ConnectionProvider>
+      </div>
+    </div>
   );
 }
 
