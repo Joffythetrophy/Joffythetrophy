@@ -39,6 +39,11 @@ function WalletUI() {
   const [crtUiAmount, setCrtUiAmount] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [recipient, setRecipient] = useState("");
+  // ==== CRT Converter (Jupiter) ====
+  const [swapFrom, setSwapFrom] = useState("CRT");
+  const [swapTo, setSwapTo] = useState("USDC");
+  const [swapAmt, setSwapAmt] = useState("1");
+  const [quote, setQuote] = useState(null);
   // ==== Native Mini Roulette helpers ====
   const rouletteNumbers = {
     red: [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36],
