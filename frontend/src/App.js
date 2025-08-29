@@ -104,6 +104,13 @@ function WalletUI() {
       console.warn("wallet log failed", e);
     }
   }, [api, publicKey, wallet?.adapter?.name]);
+  // Wallet diagnostics (simple)
+  const diagnostics = useMemo(() => ({
+    connected,
+    walletName: wallet?.adapter?.name || "-",
+    addressShort: publicKey ? `${publicKey.toString().slice(0,6)}…${publicKey.toString().slice(-6)}` : "-",
+  }), [connected, wallet?.adapter?.name, publicKey]);
+
 
   const fetchSol = useCallback(async () => {
     if (!publicKey) return;
