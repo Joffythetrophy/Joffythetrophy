@@ -89,7 +89,7 @@ async def log_wallet_connection(payload: WalletConnectionLog):
 @api_router.post("/transactions/log", response_model=TransactionMetadata)
 async def log_transaction(payload: TransactionMetadata):
     # basic format checks
-    if not payload.signature or len(payload.signature) &lt; 44:
+    if not payload.signature or len(payload.signature) < 44:
         raise HTTPException(status_code=400, detail="Invalid signature")
     try:
         await db.tx_logs.insert_one(payload.dict())
