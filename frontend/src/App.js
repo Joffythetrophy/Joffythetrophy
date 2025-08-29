@@ -263,16 +263,59 @@ function WalletUI() {
       </Card>
 
       <Card className="card">
-        <h3 className="mb-2">Mini Roulette (Demo)</h3>
-        <AspectRatio ratio={16/9}>
-          <iframe
-            src="https://free-slots.games/playtechslots/MiniRoulette/index.html"
-            title="Mini Roulette - free slot"
-            style={{ width: "100%", height: "100%", border: 0, borderRadius: 12 }}
-            allow="autoplay; encrypted-media"
-          />
-        </AspectRatio>
-        <div className="muted" style={{ marginTop: 8 }}>If the game does not load, it may block embedding. I can add an "Open in new tab" button.</div>
+        <h3 className="mb-2">Mini Roulette (Native)</h3>
+        <div className="grid">
+          <div>
+            <Label>Bet Type</Label>
+            <Select value={betType} onValueChange={setBetType}>
+              <SelectTrigger className="w-full"><SelectValue placeholder="Select" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="red">Red (1:1)</SelectItem>
+                <SelectItem value="black">Black (1:1)</SelectItem>
+                <SelectItem value="even">Even (1:1)</SelectItem>
+                <SelectItem value="odd">Odd (1:1)</SelectItem>
+                <SelectItem value="straight">Straight (35:1)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {betType === "straight" && (
+            <div>
+              <Label htmlFor="straight">Number (0-36)</Label>
+              <Input id="straight" value={straightNo} onChange={(e) => setStraightNo(e.target.value)} />
+            </div>
+          )}
+          <div>
+            <Label htmlFor="betAmt">Bet Amount</Label>
+            <Input id="betAmt" type="number" step="0.0001" value={betAmount} onChange={(e) => setBetAmount(e.target.value)} />
+          </div>
+          <div>
+            <Label>Currency (for accounting)</Label>
+            <Select value={betCurrency} onValueChange={setBetCurrency}>
+              <SelectTrigger className="w-full"><SelectValue placeholder="Select" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="SOL">SOL</SelectItem>
+                <SelectItem value="USDC">USDC</SelectItem>
+                <SelectItem value="CRT">CRT</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="self-end"><Button onClick={spinRoulette}>Spin</Button></div>
+        </div>
+        {lastSpin && (
+          <div style={{ marginTop: 12 }}>
+            <div className="pill">Result: {lastSpin.n} ({lastSpin.color}) • {lastSpin.won ? "WIN" : "LOSS"} • Net {lastSpin.net}</div>
+          </div>
+        )}
+        {history.length > 0 && (
+          <div style={{ marginTop: 12 }}>
+            <h4 className="mb-2">Recent Spins</h4>
+            <div className="row" style={{ flexWrap: 'wrap' }}>
+              {history.map((h, i) => (
+                <div key={i} className="pill">{h.n} {h.won ? "W" : "L"} {h.net}</div>
+              ))}
+            </div>
+          </div>
+        )}
       </Card>
 
       {connected && (
