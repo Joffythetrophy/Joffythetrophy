@@ -138,6 +138,73 @@ function WalletUI() {
     if (!publicKey || !crtMint) return;
     try {
       setIsLoading(true);
+  // ==== CRT Converter (Jupiter) ====
+  const [swapFrom, setSwapFrom] = useState("CRT");
+  const [swapTo, setSwapTo] = useState("USDC");
+  const [swapAmt, setSwapAmt] = useState("1");
+  const [quote, setQuote] = useState(null);
+
+  const mintFor = (sym) => {
+    if (sym === "CRT") return crtMint; // your mint
+    if (sym === "USDC") return JUP_USDC;
+    if (sym === "SOL") return JUP_WSOLA;
+    return crtMint;
+  };
+
+  const fetchQuote = useCallback(async () => {
+    try {
+      if (!publicKey) return setError("Connect wallet first");
+      const inMint = mintFor(swapFrom);
+      const outMint = mintFor(swapTo);
+      if (!inMint || !outMint || inMint === outMint) return setError("Select different tokens");
+      // amount in smallest units: assume 6 decimals for demo; better: fetch decimals for each mint
+      const ui = parseFloat(swapAmt || "0");
+      if (!ui || ui <= 0) return setError("Enter swap amount");
+      const amount = Math.floor(ui * 10 ** 6);
+      const res = await fetch(`${JUP_BASE}/quote?inputMint=${inMint}&outputMint=${outMint}&amount=${amount}&slippageBps=100`);
+      const data = await res.json();
+      if (!data || !data.outAmount) {
+        setError("No route found");
+        setQuote(null);
+        return;
+      }
+      setQuote(data);
+    } catch (e) {
+      console.error(e);
+      setError("Quote failed");
+    }
+  }, [publicKey, swapFrom, swapTo, swapAmt, crtMint]);
+
+  const doSwap = useCallback(async () => {
+    try {
+      if (!publicKey || !sendTransaction) return setError("Connect wallet first");
+      const inMint = mintFor(swapFrom);
+      const outMint = mintFor(swapTo);
+      const ui = parseFloat(swapAmt || "0");
+      const amount = Math.floor(ui * 10 ** 6);
+      // Build swap transaction via Jupiter /swap
+      const swapRes = await fetch(`${JUP_BASE}/swap`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          quoteResponse: quote,
+          userPublicKey: publicKey.toString(),
+          wrapAndUnwrapSol: true,
+        }),
+      });
+      const txData = await swapRes.json();
+      if (!txData || !txData.swapTransaction) return setError("Swap build failed");
+      const swapTxBuf = Buffer.from(txData.swapTransaction, "base64");
+      const tx = VersionedTransaction.deserialize(swapTxBuf);
+      const sig = await sendTransaction(tx, connection);
+      await connection.confirmTransaction(sig, "confirmed");
+      alert(`Swap sent! ${sig}`);
+    } catch (e) {
+      console.error(e);
+      setError(e?.message || "Swap failed");
+    }
+  }, [publicKey, sendTransaction, connection, swapFrom, swapTo, swapAmt, quote]);
+
       const mintPk = new PublicKey(crtMint);
       const ata = await getAssociatedTokenAddress(mintPk, publicKey);
       const acctInfo = await connection.getAccountInfo(ata);
