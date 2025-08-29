@@ -158,26 +158,26 @@ function WalletUI() {
         )}
       </Card>
 
-      {connected &amp;&amp; (
-        <Card className="card"&gt;
-          <h3 className="mb-2"&gt;Balances</h3&gt;
-          <div className="row"&gt;
-            <div className="pill"&gt;SOL: {solBalance != null ? solBalance.toFixed(4) : "…"}</div&gt;
-            <div className="pill"&gt;CRT: {crtUiAmount != null ? Number(crtUiAmount).toFixed(4) : "—"}</div&gt;
-            <Button variant="secondary" onClick={() =&gt; { fetchSol(); fetchCRT(); }} disabled={isLoading}&gt;
+      {connected && (
+        <Card className="card">
+          <h3 className="mb-2">Balances</h3>
+          <div className="row">
+            <div className="pill">SOL: {solBalance != null ? solBalance.toFixed(4) : "…"}</div>
+            <div className="pill">CRT: {crtUiAmount != null ? Number(crtUiAmount).toFixed(4) : "—"}</div>
+            <Button variant="secondary" onClick={() => { fetchSol(); fetchCRT(); }} disabled={isLoading}>
               {isLoading ? "Refreshing…" : "Refresh"}
-            </Button&gt;
-          </div&gt;
-          <div className="grid"&gt;
-            <div&gt;
-              <Label htmlFor="crt"&gt;CRT Token Mint</Label&gt;
-              <Input id="crt" placeholder="Paste CRT mint address" value={crtMint} onChange={(e) =&gt; setCrtMint(e.target.value)} /&gt;
-            </div&gt;
-            <div className="self-end"&gt;
-              <Button onClick={fetchCRT} disabled={!crtMint || isLoading}&gt;Detect Balance</Button&gt;
-            </div&gt;
-          </div&gt;
-        </Card&gt;
+            </Button>
+          </div>
+          <div className="grid">
+            <div>
+              <Label htmlFor="crt">CRT Token Mint</Label>
+              <Input id="crt" placeholder="Paste CRT mint address" value={crtMint} onChange={(e) => setCrtMint(e.target.value)} />
+            </div>
+            <div className="self-end">
+              <Button onClick={fetchCRT} disabled={!crtMint || isLoading}>Detect Balance</Button>
+            </div>
+          </div>
+        </Card>
       )}
 
       {connected &amp;&amp; (
