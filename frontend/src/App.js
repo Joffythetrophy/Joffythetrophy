@@ -205,8 +205,8 @@ function WalletUI() {
 
 function App() {
   const network = "devnet";
-  const endpoint = useMemo(() =&gt; clusterApiUrl(network), [network]);
-  const wallets = useMemo(() =&gt; [new PhantomWalletAdapter(), new SolflareWalletAdapter()], []);
+  const endpoint = useMemo(() => clusterApiUrl(network), [network]);
+  const wallets = useMemo(() => [new PhantomWalletAdapter(), new SolflareWalletAdapter()], []);
 
   // simple backend ping on load
   useEffect(() =&gt; {
