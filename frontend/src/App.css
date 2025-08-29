@@ -1,34 +1,45 @@
-.App-logo {
-    height: 40vmin;
-    pointer-events: none;
+:root {
+  --bg: #0b0e13;
+  --card: rgba(255, 255, 255, 0.06);
+  --border: rgba(255, 255, 255, 0.12);
+  --text: #e6f0f3;
+  --muted: #9fb2bb;
+  --accent: #2dd4bf; /* teal */
+  --accent-2: #10b981; /* emerald */
+  --danger: #ef4444;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-    .App-logo {
-        animation: App-logo-spin infinite 20s linear;
-    }
+* { box-sizing: border-box; }
+
+.App {
+  min-height: 100vh;
+  background: radial-gradient(1200px 600px at 20% -10%, rgba(45, 212, 191, 0.08), transparent),
+              radial-gradient(1000px 500px at 120% 10%, rgba(16, 185, 129, 0.08), transparent),
+              var(--bg);
+  color: var(--text);
 }
 
-.App-header {
-    background-color: #0f0f10;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    font-size: calc(10px + 2vmin);
-    color: white;
-}
+.container { max-width: 1100px; margin: 0 auto; padding: 48px 24px 120px; }
 
-.App-link {
-    color: #61dafb;
-}
+.header { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 28px; }
+.title { font-size: 28px; font-weight: 700; letter-spacing: 0.2px; }
+.subtitle { color: var(--muted); margin-top: 6px; }
 
-@keyframes App-logo-spin {
-    from {
-        transform: rotate(0deg);
-    }
-    to {
-        transform: rotate(360deg);
-    }
-}
+.main { display: grid; gap: 18px; }
+
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 18px; box-shadow: 0 10px 30px rgba(0,0,0,0.25); }
+.card-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+@media (max-width: 720px) { .grid { grid-template-columns: 1fr; } }
+
+.pill { padding: 8px 12px; border-radius: 999px; background: rgba(45,212,191,0.12); border: 1px solid rgba(45,212,191,0.25); color: var(--text); font-weight: 600; }
+.muted { color: var(--muted); }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; opacity: 0.9; user-select: all; }
+
+.wallet-btn { border-radius: 999px !important; }
+
+.error { margin-top: 10px; color: #fff; background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); padding: 10px 12px; border-radius: 10px; }
+
+button, .wallet-adapter-button { transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease; }
