@@ -34,6 +34,67 @@ function WalletUI() {
   const [crtUiAmount, setCrtUiAmount] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [recipient, setRecipient] = useState("");
+  // ==== Native Mini Roulette helpers ====
+  const rouletteNumbers = {
+    red: [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36],
+    black: [2, 4, 6, 8, 10, 11, 13, 15, 17, 20, 22, 24, 26, 28, 29, 31, 33, 35],
+    green: [0],
+  };
+  const betConfig = {
+    red: { payout: 1, label: "Red" },
+    black: { payout: 1, label: "Black" },
+    even: { payout: 1, label: "Even" },
+    odd: { payout: 1, label: "Odd" },
+    straight: { payout: 35, label: "Straight (single number)" },
+  };
+  const [betType, setBetType] = useState("red");
+  const [straightNo, setStraightNo] = useState("");
+  const [betCurrency, setBetCurrency] = useState("SOL");
+  const [betAmount, setBetAmount] = useState("0.01");
+  const [lastSpin, setLastSpin] = useState(null);
+  const [history, setHistory] = useState([]);
+
+  const getColor = (n) => (rouletteNumbers.red.includes(n) ? "red" : rouletteNumbers.black.includes(n) ? "black" : "green");
+  const isWin = (n) => {
+    if (betType === "red") return rouletteNumbers.red.includes(n);
+    if (betType === "black") return rouletteNumbers.black.includes(n);
+    if (betType === "even") return n !== 0 && n % 2 === 0;
+    if (betType === "odd") return n % 2 === 1;
+    if (betType === "straight") return String(n) === String(straightNo);
+    return false;
+  };
+  const recordLossAPI = useCallback(async (amt, currency) => {
+    if (!publicKey) return; // require wallet for accounting
+    try {
+      await api.post("/gaming/loss", {
+        wallet_address: publicKey.toString(),
+        amount: amt,
+        currency,
+      });
+      await fetchSummary();
+    } catch (e) {
+      console.warn("loss log failed", e);
+    }
+  }, [api, fetchSummary, publicKey]);
+
+  const spinRoulette = useCallback(async () => {
+    const amt = parseFloat(betAmount);
+    if (!amt || amt <= 0) return setError("Enter a positive bet amount");
+    if (betType === "straight") {
+      const sn = parseInt(straightNo, 10);
+      if (isNaN(sn) || sn < 0 || sn > 36) return setError("Enter straight number 0-36");
+    }
+    const n = Math.floor(Math.random() * 37);
+    const won = isWin(n);
+    const payout = betConfig[betType].payout;
+    const net = won ? amt * payout : -amt; // net profit (loss negative)
+    setLastSpin({ n, color: getColor(n), won, net, bet: amt, type: betType, currency: betCurrency });
+    setHistory((h) => [{ n, won, net, bet: amt, type: betType, currency: betCurrency, ts: Date.now() }, ...h].slice(0, 10));
+    if (net < 0) {
+      await recordLossAPI(-net, betCurrency);
+    }
+  }, [betAmount, betCurrency, betType, straightNo, recordLossAPI]);
+
   const [amount, setAmount] = useState("0.01");
   const [error, setError] = useState("");
 
