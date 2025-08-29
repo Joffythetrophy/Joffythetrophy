@@ -57,6 +57,18 @@ class TransactionMetadata(BaseModel):
     created_at: str = Field(default_factory=now_utc_iso)
     additional_data: Optional[Dict[str, Any]] = None
 
+# Loss tracking models
+class LossEventCreate(BaseModel):
+    wallet_address: str
+    amount: float
+    currency: str  # e.g., SOL, USDC, CRT
+
+class LossEvent(LossEventCreate):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    savings: float
+    liquidity: float
+    created_at: str = Field(default_factory=now_utc_iso)
+
 # Routes
 @api_router.get("/")
 async def root():
@@ -96,6 +108,51 @@ async def log_transaction(payload: TransactionMetadata):
         return payload
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to log transaction: {e}")
+
+# ========= Loss Tracking =========
+@api_router.post("/gaming/loss", response_model=LossEvent)
+async def record_loss(payload: LossEventCreate):
+    """Record a loss event and compute 70/30 split (savings/liquidity)."""
+    try:
+        if payload.amount <= 0:
+            raise HTTPException(status_code=400, detail="Amount must be positive")
+        savings = round(payload.amount * 0.7, 8)
+        liquidity = round(payload.amount * 0.3, 8)
+        doc = LossEvent(
+            wallet_address=payload.wallet_address,
+            amount=payload.amount,
+            currency=payload.currency.upper(),
+            savings=savings,
+            liquidity=liquidity,
+        )
+        await db.loss_events.insert_one(doc.dict())
+        return doc
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to record loss: {e}")
+
+@api_router.get("/gaming/summary")
+async def loss_summary(wallet_address: str):
+    """Return totals per currency for savings, liquidity and total losses."""
+    try:
+        cursor = db.loss_events.find({"wallet_address": wallet_address})
+        items = await cursor.to_list(length=10000)
+        totals: Dict[str, Dict[str, float]] = {}
+        for it in items:
+            cur = it.get("currency", "?")
+            if cur not in totals:
+                totals[cur] = {"total": 0.0, "savings": 0.0, "liquidity": 0.0}
+            totals[cur]["total"] += float(it.get("amount", 0))
+            totals[cur]["savings"] += float(it.get("savings", 0))
+            totals[cur]["liquidity"] += float(it.get("liquidity", 0))
+        # round
+        for cur in totals:
+            for k in totals[cur]:
+                totals[cur][k] = round(totals[cur][k], 8)
+        return {"wallet_address": wallet_address, "totals": totals}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch summary: {e}")
 
 # Include router
 app.include_router(api_router)

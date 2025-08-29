@@ -7,6 +7,13 @@ import { Input } from "./components/ui/input";
 import { Card } from "./components/ui/card";
 import { Label } from "./components/ui/label";
 import { AspectRatio } from "./components/ui/aspect-ratio";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./components/ui/select";
 
 // Solana & Wallet Adapter
 import { clusterApiUrl, LAMPORTS_PER_SOL, PublicKey, SystemProgram, Transaction } from "@solana/web3.js";
@@ -23,12 +30,16 @@ function WalletUI() {
   const { publicKey, sendTransaction, connected, wallet } = useWallet();
 
   const [solBalance, setSolBalance] = useState(null);
-  const [crtMint, setCrtMint] = useState("");
+  const [crtMint, setCrtMint] = useState("9pjWtc6x88wrRMXTxkBcNB6YtcN7NNcyzDAfUMfRknty");
   const [crtUiAmount, setCrtUiAmount] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [recipient, setRecipient] = useState("");
   const [amount, setAmount] = useState("0.01");
   const [error, setError] = useState("");
+
+  const [lossAmount, setLossAmount] = useState("");
+  const [lossCurrency, setLossCurrency] = useState("SOL");
+  const [summary, setSummary] = useState({});
 
   const api = useMemo(() => axios.create({ baseURL: API_BASE }), []);
 
@@ -42,7 +53,6 @@ function WalletUI() {
         user_agent: navigator.userAgent,
       });
     } catch (e) {
-      // non-blocking
       console.warn("wallet log failed", e);
     }
   }, [api, publicKey, wallet?.adapter?.name]);
@@ -70,7 +80,6 @@ function WalletUI() {
         return;
       }
       const tokenAccount = await getAccount(connection, ata);
-      // try to get decimals via parsed account (fallback 0)
       let decimals = 0;
       try {
         const parsedMint = await connection.getParsedAccountInfo(mintPk);
@@ -105,7 +114,6 @@ function WalletUI() {
       tx.feePayer = publicKey;
       const sig = await sendTransaction(tx, connection);
       await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight });
-      // log to backend (non-blocking)
       try {
         await api.post("/transactions/log", {
           id: crypto.randomUUID(),
@@ -130,14 +138,49 @@ function WalletUI() {
     }
   }, [amount, api, connection, fetchSol, publicKey, recipient, sendTransaction]);
 
+  const fetchSummary = useCallback(async () => {
+    if (!publicKey) return;
+    try {
+      const res = await api.get(`/gaming/summary`, { params: { wallet_address: publicKey.toString() } });
+      setSummary(res.data?.totals || {});
+    } catch (e) {
+      console.warn("summary fetch failed", e);
+    }
+  }, [api, publicKey]);
+
+  const recordLoss = useCallback(async () => {
+    if (!publicKey) return setError("Connect wallet first");
+    const amt = parseFloat(lossAmount);
+    if (!amt || amt <= 0) return setError("Enter a positive loss amount");
+    try {
+      setIsLoading(true);
+      setError("");
+      await api.post("/gaming/loss", {
+        wallet_address: publicKey.toString(),
+        amount: amt,
+        currency: lossCurrency,
+      });
+      await fetchSummary();
+      setLossAmount("");
+      alert(`Recorded loss: ${amt} ${lossCurrency} → 70% savings / 30% liquidity`);
+    } catch (e) {
+      console.error(e);
+      setError("Failed to record loss");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [api, fetchSummary, lossAmount, lossCurrency, publicKey]);
+
   useEffect(() => {
     if (connected && publicKey) {
       logWalletConnection();
       fetchSol();
       if (crtMint) fetchCRT();
+      fetchSummary();
     } else {
       setSolBalance(null);
       setCrtUiAmount(null);
+      setSummary({});
     }
   }, [connected, publicKey]);
 
@@ -158,13 +201,26 @@ function WalletUI() {
         )}
       </Card>
 
+      <Card className="card">
+        <h3 className="mb-2">Mini Roulette (Demo)</h3>
+        <AspectRatio ratio={16/9}>
+          <iframe
+            src="https://free-slots.games/playtechslots/MiniRoulette/index.html"
+            title="Mini Roulette - free slot"
+            style={{ width: "100%", height: "100%", border: 0, borderRadius: 12 }}
+            allow="autoplay; encrypted-media"
+          />
+        </AspectRatio>
+        <div className="muted" style={{ marginTop: 8 }}>If the game does not load, it may block embedding. I can add an "Open in new tab" button.</div>
+      </Card>
+
       {connected && (
         <Card className="card">
           <h3 className="mb-2">Balances</h3>
           <div className="row">
             <div className="pill">SOL: {solBalance != null ? solBalance.toFixed(4) : "…"}</div>
             <div className="pill">CRT: {crtUiAmount != null ? Number(crtUiAmount).toFixed(4) : "—"}</div>
-            <Button variant="secondary" onClick={() => { fetchSol(); fetchCRT(); }} disabled={isLoading}>
+            <Button variant="secondary" onClick={() => { fetchSol(); fetchCRT(); fetchSummary(); }} disabled={isLoading}>
               {isLoading ? "Refreshing…" : "Refresh"}
             </Button>
           </div>
@@ -177,6 +233,43 @@ function WalletUI() {
               <Button onClick={fetchCRT} disabled={!crtMint || isLoading}>Detect Balance</Button>
             </div>
           </div>
+        </Card>
+      )}
+
+      {connected && (
+        <Card className="card">
+          <h3 className="mb-2">Record a Loss (auto 70% savings / 30% liquidity)</h3>
+          <div className="grid">
+            <div>
+              <Label htmlFor="lossAmt">Loss Amount</Label>
+              <Input id="lossAmt" type="number" step="0.0001" value={lossAmount} onChange={(e) => setLossAmount(e.target.value)} />
+            </div>
+            <div>
+              <Label>Currency</Label>
+              <Select value={lossCurrency} onValueChange={setLossCurrency}>
+                <SelectTrigger className="w-full"><SelectValue placeholder="Select" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="SOL">SOL</SelectItem>
+                  <SelectItem value="USDC">USDC</SelectItem>
+                  <SelectItem value="CRT">CRT</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="self-end">
+              <Button onClick={recordLoss} disabled={isLoading || !lossAmount}>Record Loss</Button>
+            </div>
+          </div>
+          {Object.keys(summary || {}).length > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <h4 className="mb-2">Totals</h4>
+              <div className="row" style={{ flexWrap: 'wrap' }}>
+                {Object.entries(summary).map(([cur, vals]) => (
+                  <div key={cur} className="pill">{cur}: total {vals.total} • savings {vals.savings} • liq {vals.liquidity}</div>
+                ))}
+              </div>
+            </div>
+          )}
+          {error && <div className="error">{error}</div>}
         </Card>
       )}
 
@@ -235,17 +328,6 @@ function App() {
             <WalletModalProvider>
               <main className="main">
                 <WalletUI />
-                <Card className="card">
-                  <h3 className="mb-2">Mini Roulette (Demo)</h3>
-                  <AspectRatio ratio={16/9}>
-                    <iframe
-                      src="https://free-slots.games/playtechslots/MiniRoulette/index.html"
-                      title="Mini Roulette - free slot"
-                      style={{ width: "100%", height: "100%", border: 0, borderRadius: 12 }}
-                      allow="autoplay; encrypted-media"
-                    />
-                  </AspectRatio>
-                </Card>
               </main>
             </WalletModalProvider>
           </WalletProvider>
