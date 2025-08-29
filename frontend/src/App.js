@@ -209,8 +209,8 @@ function App() {
   const wallets = useMemo(() => [new PhantomWalletAdapter(), new SolflareWalletAdapter()], []);
 
   // simple backend ping on load
-  useEffect(() =&gt; {
-    const ping = async () =&gt; {
+  useEffect(() => {
+    const ping = async () => {
       try {
         const res = await axios.get(`${API_BASE}/health`);
         console.log("API health:", res.data);
