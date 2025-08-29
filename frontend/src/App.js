@@ -180,26 +180,26 @@ function WalletUI() {
         </Card>
       )}
 
-      {connected &amp;&amp; (
-        <Card className="card"&gt;
-          <h3 className="mb-2"&gt;Send SOL (Devnet)</h3&gt;
-          <div className="grid"&gt;
-            <div&gt;
-              <Label htmlFor="amt"&gt;Amount (SOL)</Label&gt;
-              <Input id="amt" type="number" step="0.001" value={amount} onChange={(e) =&gt; setAmount(e.target.value)} /&gt;
-            </div&gt;
-            <div&gt;
-              <Label htmlFor="to"&gt;Recipient Address</Label&gt;
-              <Input id="to" placeholder="Enter Solana address" value={recipient} onChange={(e) =&gt; setRecipient(e.target.value)} /&gt;
-            </div&gt;
-            <div className="self-end"&gt;
-              <Button onClick={sendSol} disabled={isLoading || !recipient || !amount}&gt;{isLoading ? "Sending…" : "Send"}</Button&gt;
-            </div&gt;
-          </div&gt;
-          {error &amp;&amp; <div className="error"&gt;{error}</div&gt;}
-        </Card&gt;
+      {connected && (
+        <Card className="card">
+          <h3 className="mb-2">Send SOL (Devnet)</h3>
+          <div className="grid">
+            <div>
+              <Label htmlFor="amt">Amount (SOL)</Label>
+              <Input id="amt" type="number" step="0.001" value={amount} onChange={(e) => setAmount(e.target.value)} />
+            </div>
+            <div>
+              <Label htmlFor="to">Recipient Address</Label>
+              <Input id="to" placeholder="Enter Solana address" value={recipient} onChange={(e) => setRecipient(e.target.value)} />
+            </div>
+            <div className="self-end">
+              <Button onClick={sendSol} disabled={isLoading || !recipient || !amount}>{isLoading ? "Sending…" : "Send"}</Button>
+            </div>
+          </div>
+          {error && <div className="error">{error}</div>}
+        </Card>
       )}
-    </&gt;
+    </>
   );
 }
 
