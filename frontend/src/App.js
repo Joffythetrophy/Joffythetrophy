@@ -235,6 +235,17 @@ function App() {
             <WalletModalProvider>
               <main className="main">
                 <WalletUI />
+                <Card className="card">
+                  <h3 className="mb-2">Mini Roulette (Demo)</h3>
+                  <AspectRatio ratio={16/9}>
+                    <iframe
+                      src="https://free-slots.games/playtechslots/MiniRoulette/index.html"
+                      title="Mini Roulette - free slot"
+                      style={{ width: "100%", height: "100%", border: 0, borderRadius: 12 }}
+                      allow="autoplay; encrypted-media"
+                    />
+                  </AspectRatio>
+                </Card>
               </main>
             </WalletModalProvider>
           </WalletProvider>
