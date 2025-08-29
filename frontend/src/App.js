@@ -596,6 +596,9 @@ function App() {
             <WalletModalProvider>
               <main className="main">
                 <WalletUI />
+                <Suspense fallback={<div className="muted">Loading Liquidity…</div>}>
+                  <LiquidityPage />
+                </Suspense>
               </main>
             </WalletModalProvider>
           </WalletProvider>
