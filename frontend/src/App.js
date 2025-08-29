@@ -29,6 +29,8 @@ import { WalletModalProvider, WalletMultiButton } from "@solana/wallet-adapter-r
 import { PhantomWalletAdapter, SolflareWalletAdapter } from "@solana/wallet-adapter-wallets";
 import "@solana/wallet-adapter-react-ui/styles.css";
 import { getAccount, getAssociatedTokenAddress } from "@solana/spl-token";
+const LiquidityPage = lazy(() => import('./LiquidityPage'));
+
 
 // Jupiter API (REST) client (devnet-compatible)
 const JUP_BASE = "https://quote-api.jup.ag/v6";
