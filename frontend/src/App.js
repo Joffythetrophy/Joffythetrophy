@@ -142,64 +142,64 @@ function WalletUI() {
   }, [connected, publicKey]);
 
   return (
-    &lt;&gt;
-      &lt;Card className="card"&gt;
-        &lt;div className="card-header"&gt;
-          &lt;h2&gt;Wallet&lt;/h2&gt;
-          &lt;WalletMultiButton className="wallet-btn" /&gt;
-        &lt;/div&gt;
+    <&gt;
+      <Card className="card"&gt;
+        <div className="card-header"&gt;
+          <h2&gt;Wallet</h2&gt;
+          <WalletMultiButton className="wallet-btn" /&gt;
+        </div&gt;
         {connected &amp;&amp; publicKey ? (
-          &lt;div className="wallet-info"&gt;
-            &lt;div&gt;Connected: {wallet?.adapter?.name}&lt;/div&gt;
-            &lt;div className="mono"&gt;{publicKey.toString()}&lt;/div&gt;
-          &lt;/div&gt;
+          <div className="wallet-info"&gt;
+            <div&gt;Connected: {wallet?.adapter?.name}</div&gt;
+            <div className="mono"&gt;{publicKey.toString()}</div&gt;
+          </div&gt;
         ) : (
-          &lt;div className="muted"&gt;Connect Phantom or Solflare on Devnet&lt;/div&gt;
+          <div className="muted"&gt;Connect Phantom or Solflare on Devnet</div&gt;
         )}
-      &lt;/Card&gt;
+      </Card&gt;
 
       {connected &amp;&amp; (
-        &lt;Card className="card"&gt;
-          &lt;h3 className="mb-2"&gt;Balances&lt;/h3&gt;
-          &lt;div className="row"&gt;
-            &lt;div className="pill"&gt;SOL: {solBalance != null ? solBalance.toFixed(4) : "…"}&lt;/div&gt;
-            &lt;div className="pill"&gt;CRT: {crtUiAmount != null ? Number(crtUiAmount).toFixed(4) : "—"}&lt;/div&gt;
-            &lt;Button variant="secondary" onClick={() =&gt; { fetchSol(); fetchCRT(); }} disabled={isLoading}&gt;
+        <Card className="card"&gt;
+          <h3 className="mb-2"&gt;Balances</h3&gt;
+          <div className="row"&gt;
+            <div className="pill"&gt;SOL: {solBalance != null ? solBalance.toFixed(4) : "…"}</div&gt;
+            <div className="pill"&gt;CRT: {crtUiAmount != null ? Number(crtUiAmount).toFixed(4) : "—"}</div&gt;
+            <Button variant="secondary" onClick={() =&gt; { fetchSol(); fetchCRT(); }} disabled={isLoading}&gt;
               {isLoading ? "Refreshing…" : "Refresh"}
-            &lt;/Button&gt;
-          &lt;/div&gt;
-          &lt;div className="grid"&gt;
-            &lt;div&gt;
-              &lt;Label htmlFor="crt"&gt;CRT Token Mint&lt;/Label&gt;
-              &lt;Input id="crt" placeholder="Paste CRT mint address" value={crtMint} onChange={(e) =&gt; setCrtMint(e.target.value)} /&gt;
-            &lt;/div&gt;
-            &lt;div className="self-end"&gt;
-              &lt;Button onClick={fetchCRT} disabled={!crtMint || isLoading}&gt;Detect Balance&lt;/Button&gt;
-            &lt;/div&gt;
-          &lt;/div&gt;
-        &lt;/Card&gt;
+            </Button&gt;
+          </div&gt;
+          <div className="grid"&gt;
+            <div&gt;
+              <Label htmlFor="crt"&gt;CRT Token Mint</Label&gt;
+              <Input id="crt" placeholder="Paste CRT mint address" value={crtMint} onChange={(e) =&gt; setCrtMint(e.target.value)} /&gt;
+            </div&gt;
+            <div className="self-end"&gt;
+              <Button onClick={fetchCRT} disabled={!crtMint || isLoading}&gt;Detect Balance</Button&gt;
+            </div&gt;
+          </div&gt;
+        </Card&gt;
       )}
 
       {connected &amp;&amp; (
-        &lt;Card className="card"&gt;
-          &lt;h3 className="mb-2"&gt;Send SOL (Devnet)&lt;/h3&gt;
-          &lt;div className="grid"&gt;
-            &lt;div&gt;
-              &lt;Label htmlFor="amt"&gt;Amount (SOL)&lt;/Label&gt;
-              &lt;Input id="amt" type="number" step="0.001" value={amount} onChange={(e) =&gt; setAmount(e.target.value)} /&gt;
-            &lt;/div&gt;
-            &lt;div&gt;
-              &lt;Label htmlFor="to"&gt;Recipient Address&lt;/Label&gt;
-              &lt;Input id="to" placeholder="Enter Solana address" value={recipient} onChange={(e) =&gt; setRecipient(e.target.value)} /&gt;
-            &lt;/div&gt;
-            &lt;div className="self-end"&gt;
-              &lt;Button onClick={sendSol} disabled={isLoading || !recipient || !amount}&gt;{isLoading ? "Sending…" : "Send"}&lt;/Button&gt;
-            &lt;/div&gt;
-          &lt;/div&gt;
-          {error &amp;&amp; &lt;div className="error"&gt;{error}&lt;/div&gt;}
-        &lt;/Card&gt;
+        <Card className="card"&gt;
+          <h3 className="mb-2"&gt;Send SOL (Devnet)</h3&gt;
+          <div className="grid"&gt;
+            <div&gt;
+              <Label htmlFor="amt"&gt;Amount (SOL)</Label&gt;
+              <Input id="amt" type="number" step="0.001" value={amount} onChange={(e) =&gt; setAmount(e.target.value)} /&gt;
+            </div&gt;
+            <div&gt;
+              <Label htmlFor="to"&gt;Recipient Address</Label&gt;
+              <Input id="to" placeholder="Enter Solana address" value={recipient} onChange={(e) =&gt; setRecipient(e.target.value)} /&gt;
+            </div&gt;
+            <div className="self-end"&gt;
+              <Button onClick={sendSol} disabled={isLoading || !recipient || !amount}&gt;{isLoading ? "Sending…" : "Send"}</Button&gt;
+            </div&gt;
+          </div&gt;
+          {error &amp;&amp; <div className="error"&gt;{error}</div&gt;}
+        </Card&gt;
       )}
-    &lt;/&gt;
+    </&gt;
   );
 }
 
@@ -222,25 +222,25 @@ function App() {
   }, []);
 
   return (
-    &lt;div className="App"&gt;
-      &lt;div className="container"&gt;
-        &lt;header className="header"&gt;
-          &lt;div&gt;
-            &lt;h1 className="title"&gt;Solana Devnet Onboarding&lt;/h1&gt;
-            &lt;p className="subtitle"&gt;Connect wallet • Detect CRT • Send SOL&lt;/p&gt;
-          &lt;/div&gt;
-        &lt;/header&gt;
-        &lt;ConnectionProvider endpoint={endpoint}&gt;
-          &lt;WalletProvider wallets={wallets} autoConnect&gt;
-            &lt;WalletModalProvider&gt;
-              &lt;main className="main"&gt;
-                &lt;WalletUI /&gt;
-              &lt;/main&gt;
-            &lt;/WalletModalProvider&gt;
-          &lt;/WalletProvider&gt;
-        &lt;/ConnectionProvider&gt;
-      &lt;/div&gt;
-    &lt;/div&gt;
+    <div className="App"&gt;
+      <div className="container"&gt;
+        <header className="header"&gt;
+          <div&gt;
+            <h1 className="title"&gt;Solana Devnet Onboarding</h1&gt;
+            <p className="subtitle"&gt;Connect wallet • Detect CRT • Send SOL</p&gt;
+          </div&gt;
+        </header&gt;
+        <ConnectionProvider endpoint={endpoint}&gt;
+          <WalletProvider wallets={wallets} autoConnect&gt;
+            <WalletModalProvider&gt;
+              <main className="main"&gt;
+                <WalletUI /&gt;
+              </main&gt;
+            </WalletModalProvider&gt;
+          </WalletProvider&gt;
+        </ConnectionProvider&gt;
+      </div&gt;
+    </div&gt;
   );
 }
 
