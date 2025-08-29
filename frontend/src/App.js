@@ -6,7 +6,6 @@ import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { Card } from "./components/ui/card";
 import { Label } from "./components/ui/label";
-import { AspectRatio } from "./components/ui/aspect-ratio";
 import {
   Select,
   SelectContent,
@@ -16,17 +15,24 @@ import {
 } from "./components/ui/select";
 
 // Solana & Wallet Adapter
-import { clusterApiUrl, LAMPORTS_PER_SOL, PublicKey, SystemProgram, Transaction, VersionedTransaction } from "@solana/web3.js";
+import {
+  clusterApiUrl,
+  LAMPORTS_PER_SOL,
+  PublicKey,
+  SystemProgram,
+  Transaction,
+  VersionedTransaction,
+} from "@solana/web3.js";
 import { ConnectionProvider, WalletProvider, useConnection, useWallet } from "@solana/wallet-adapter-react";
-// Jupiter API (REST) client
-const JUP_BASE = "https://quote-api.jup.ag/v6"; // devnet-compatible
-const JUP_USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"; // devnet USDC (Jupiter uses canonical)
-const JUP_WSOLA = "So11111111111111111111111111111111111111112"; // wrapped SOL mint
-
 import { WalletModalProvider, WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import { PhantomWalletAdapter, SolflareWalletAdapter } from "@solana/wallet-adapter-wallets";
 import "@solana/wallet-adapter-react-ui/styles.css";
 import { getAccount, getAssociatedTokenAddress } from "@solana/spl-token";
+
+// Jupiter API (REST) client (devnet-compatible)
+const JUP_BASE = "https://quote-api.jup.ag/v6";
+const JUP_USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"; // USDC (devnet canonical in Jupiter)
+const JUP_WSOLA = "So11111111111111111111111111111111111111112"; // Wrapped SOL mint
 
 const API_BASE = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -34,17 +40,34 @@ function WalletUI() {
   const { connection } = useConnection();
   const { publicKey, sendTransaction, connected, wallet } = useWallet();
 
+  // Axios API (MUST be before any callback that references it)
+  const api = useMemo(() => axios.create({ baseURL: API_BASE }), []);
+
+  // Balances / CRT
   const [solBalance, setSolBalance] = useState(null);
   const [crtMint, setCrtMint] = useState("9pjWtc6x88wrRMXTxkBcNB6YtcN7NNcyzDAfUMfRknty");
   const [crtUiAmount, setCrtUiAmount] = useState(null);
+
+  // Common UI state
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  // SOL Transfer state
   const [recipient, setRecipient] = useState("");
-  // ==== CRT Converter (Jupiter) ====
+  const [amount, setAmount] = useState("0.01");
+
+  // Loss tracking manual form state
+  const [lossAmount, setLossAmount] = useState("");
+  const [lossCurrency, setLossCurrency] = useState("SOL");
+  const [summary, setSummary] = useState({});
+
+  // CRT Converter (Jupiter)
   const [swapFrom, setSwapFrom] = useState("CRT");
   const [swapTo, setSwapTo] = useState("USDC");
   const [swapAmt, setSwapAmt] = useState("1");
   const [quote, setQuote] = useState(null);
-  // ==== Native Mini Roulette helpers ====
+
+  // Native Mini Roulette helpers
   const rouletteNumbers = {
     red: [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36],
     black: [2, 4, 6, 8, 10, 11, 13, 15, 17, 20, 22, 24, 26, 28, 29, 31, 33, 35],
@@ -64,118 +87,7 @@ function WalletUI() {
   const [lastSpin, setLastSpin] = useState(null);
   const [history, setHistory] = useState([]);
 
-  const getColor = (n) => (rouletteNumbers.red.includes(n) ? "red" : rouletteNumbers.black.includes(n) ? "black" : "green");
-  const isWin = (n) => {
-    if (betType === "red") return rouletteNumbers.red.includes(n);
-    if (betType === "black") return rouletteNumbers.black.includes(n);
-    if (betType === "even") return n !== 0 && n % 2 === 0;
-    if (betType === "odd") return n % 2 === 1;
-    if (betType === "straight") return String(n) === String(straightNo);
-    return false;
-  };
-  const recordLossAPI = useCallback(async (amt, currency) => {
-    if (!publicKey) return; // require wallet for accounting
-    try {
-      await api.post("/gaming/loss", {
-        wallet_address: publicKey.toString(),
-        amount: amt,
-        currency,
-      });
-      await fetchSummary();
-    } catch (e) {
-      console.warn("loss log failed", e);
-    }
-  }, [api, fetchSummary, publicKey]);
-
-  const spinRoulette = useCallback(async () => {
-    const amt = parseFloat(betAmount);
-    if (!amt || amt <= 0) return setError("Enter a positive bet amount");
-    if (betType === "straight") {
-      const sn = parseInt(straightNo, 10);
-      if (isNaN(sn) || sn < 0 || sn > 36) return setError("Enter straight number 0-36");
-    }
-    const n = Math.floor(Math.random() * 37);
-    const won = isWin(n);
-    const payout = betConfig[betType].payout;
-    const net = won ? amt * payout : -amt; // net profit (loss negative)
-    setLastSpin({ n, color: getColor(n), won, net, bet: amt, type: betType, currency: betCurrency });
-    setHistory((h) => [{ n, won, net, bet: amt, type: betType, currency: betCurrency, ts: Date.now() }, ...h].slice(0, 10));
-    if (net < 0) {
-      await recordLossAPI(-net, betCurrency);
-    }
-  }, [betAmount, betCurrency, betType, straightNo, recordLossAPI]);
-
-  // ==== CRT Converter (Jupiter) helper functions ====
-  const mintFor = (sym) => {
-    if (sym === "CRT") return crtMint; // your mint
-    if (sym === "USDC") return JUP_USDC;
-    if (sym === "SOL") return JUP_WSOLA;
-    return crtMint;
-  };
-
-  const fetchQuote = useCallback(async () => {
-    try {
-      if (!publicKey) return setError("Connect wallet first");
-      const inMint = mintFor(swapFrom);
-      const outMint = mintFor(swapTo);
-      if (!inMint || !outMint || inMint === outMint) return setError("Select different tokens");
-      // amount in smallest units: assume 6 decimals for demo; better: fetch decimals for each mint
-      const ui = parseFloat(swapAmt || "0");
-      if (!ui || ui <= 0) return setError("Enter swap amount");
-      const amount = Math.floor(ui * 10 ** 6);
-      const res = await fetch(`${JUP_BASE}/quote?inputMint=${inMint}&outputMint=${outMint}&amount=${amount}&slippageBps=100`);
-      const data = await res.json();
-      if (!data || !data.outAmount) {
-        setError("No route found");
-        setQuote(null);
-        return;
-      }
-      setQuote(data);
-    } catch (e) {
-      console.error(e);
-      setError("Quote failed");
-    }
-  }, [publicKey, swapFrom, swapTo, swapAmt, crtMint]);
-
-  const doSwap = useCallback(async () => {
-    try {
-      if (!publicKey || !sendTransaction) return setError("Connect wallet first");
-      const inMint = mintFor(swapFrom);
-      const outMint = mintFor(swapTo);
-      const ui = parseFloat(swapAmt || "0");
-      const amount = Math.floor(ui * 10 ** 6);
-      // Build swap transaction via Jupiter /swap
-      const swapRes = await fetch(`${JUP_BASE}/swap`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          quoteResponse: quote,
-          userPublicKey: publicKey.toString(),
-          wrapAndUnwrapSol: true,
-        }),
-      });
-      const txData = await swapRes.json();
-      if (!txData || !txData.swapTransaction) return setError("Swap build failed");
-      const swapTxBuf = Buffer.from(txData.swapTransaction, "base64");
-      const tx = VersionedTransaction.deserialize(swapTxBuf);
-      const sig = await sendTransaction(tx, connection);
-      await connection.confirmTransaction(sig, "confirmed");
-      alert(`Swap sent! ${sig}`);
-    } catch (e) {
-      console.error(e);
-      setError(e?.message || "Swap failed");
-    }
-  }, [publicKey, sendTransaction, connection, swapFrom, swapTo, swapAmt, quote]);
-
-  const [amount, setAmount] = useState("0.01");
-  const [error, setError] = useState("");
-
-  const [lossAmount, setLossAmount] = useState("");
-  const [lossCurrency, setLossCurrency] = useState("SOL");
-  const [summary, setSummary] = useState({});
-
-  const api = useMemo(() => axios.create({ baseURL: API_BASE }), []);
-
+  // ---------- Helpers ----------
   const logWalletConnection = useCallback(async () => {
     if (!publicKey || !wallet?.adapter?.name) return;
     try {
@@ -230,6 +142,120 @@ function WalletUI() {
     }
   }, [connection, crtMint, publicKey]);
 
+  const fetchSummary = useCallback(async () => {
+    if (!publicKey) return;
+    try {
+      const res = await api.get(`/gaming/summary`, { params: { wallet_address: publicKey.toString() } });
+      setSummary(res.data?.totals || {});
+    } catch (e) {
+      console.warn("summary fetch failed", e);
+    }
+  }, [api, publicKey]);
+
+  // 70/30 loss logging (API)
+  const recordLossAPI = useCallback(async (amt, currency) => {
+    if (!publicKey) return; // require wallet for accounting
+    try {
+      await api.post("/gaming/loss", {
+        wallet_address: publicKey.toString(),
+        amount: amt,
+        currency,
+      });
+      await fetchSummary();
+    } catch (e) {
+      console.warn("loss log failed", e);
+    }
+  }, [api, fetchSummary, publicKey]);
+
+  // Native roulette evaluation
+  const getColor = (n) => (rouletteNumbers.red.includes(n) ? "red" : rouletteNumbers.black.includes(n) ? "black" : "green");
+  const isWin = (n) => {
+    if (betType === "red") return rouletteNumbers.red.includes(n);
+    if (betType === "black") return rouletteNumbers.black.includes(n);
+    if (betType === "even") return n !== 0 && n % 2 === 0;
+    if (betType === "odd") return n % 2 === 1;
+    if (betType === "straight") return String(n) === String(straightNo);
+    return false;
+  };
+
+  const spinRoulette = useCallback(async () => {
+    const amt = parseFloat(betAmount);
+    if (!amt || amt <= 0) return setError("Enter a positive bet amount");
+    if (betType === "straight") {
+      const sn = parseInt(straightNo, 10);
+      if (isNaN(sn) || sn < 0 || sn > 36) return setError("Enter straight number 0-36");
+    }
+    const n = Math.floor(Math.random() * 37);
+    const won = isWin(n);
+    const payout = betConfig[betType].payout;
+    const net = won ? amt * payout : -amt; // net profit (loss negative)
+    setLastSpin({ n, color: getColor(n), won, net, bet: amt, type: betType, currency: betCurrency });
+    setHistory((h) => [{ n, won, net, bet: amt, type: betType, currency: betCurrency, ts: Date.now() }, ...h].slice(0, 10));
+    if (net < 0) {
+      await recordLossAPI(-net, betCurrency);
+    }
+  }, [betAmount, betCurrency, betType, straightNo, recordLossAPI]);
+
+  // Jupiter converter helpers
+  const mintFor = (sym) => {
+    if (sym === "CRT") return crtMint; // your mint
+    if (sym === "USDC") return JUP_USDC;
+    if (sym === "SOL") return JUP_WSOLA;
+    return crtMint;
+  };
+
+  const fetchQuote = useCallback(async () => {
+    try {
+      if (!publicKey) return setError("Connect wallet first");
+      const inMint = mintFor(swapFrom);
+      const outMint = mintFor(swapTo);
+      if (!inMint || !outMint || inMint === outMint) return setError("Select different tokens");
+      const ui = parseFloat(swapAmt || "0");
+      if (!ui || ui <= 0) return setError("Enter swap amount");
+      // Assumes 6 decimals for display; proper: fetch decimals for each mint
+      const amountSmallest = Math.floor(ui * 10 ** 6);
+      const res = await fetch(`${JUP_BASE}/quote?inputMint=${inMint}&outputMint=${outMint}&amount=${amountSmallest}&slippageBps=100`);
+      const data = await res.json();
+      if (!data || !data.outAmount) {
+        setError("No route found");
+        setQuote(null);
+        return;
+      }
+      setQuote(data);
+    } catch (e) {
+      console.error(e);
+      setError("Quote failed");
+    }
+  }, [publicKey, swapFrom, swapTo, swapAmt, crtMint]);
+
+  const doSwap = useCallback(async () => {
+    try {
+      if (!publicKey || !sendTransaction) return setError("Connect wallet first");
+      if (!quote) return setError("Get a quote first");
+      const swapRes = await fetch(`${JUP_BASE}/swap`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          quoteResponse: quote,
+          userPublicKey: publicKey.toString(),
+          wrapAndUnwrapSol: true,
+        }),
+      });
+      const txData = await swapRes.json();
+      if (!txData || !txData.swapTransaction) return setError("Swap build failed");
+      const swapTxBuf = Buffer.from(txData.swapTransaction, "base64");
+      const tx = VersionedTransaction.deserialize(swapTxBuf);
+      const sig = await sendTransaction(tx, connection);
+      await connection.confirmTransaction(sig, "confirmed");
+      alert(`Swap sent! ${sig}`);
+      setQuote(null);
+    } catch (e) {
+      console.error(e);
+      setError(e?.message || "Swap failed");
+    }
+  }, [publicKey, sendTransaction, connection, quote]);
+
+  // ---------- SOL Transfer ----------
   const sendSol = useCallback(async () => {
     if (!publicKey) return setError("Connect wallet first");
     try {
@@ -271,16 +297,7 @@ function WalletUI() {
     }
   }, [amount, api, connection, fetchSol, publicKey, recipient, sendTransaction]);
 
-  const fetchSummary = useCallback(async () => {
-    if (!publicKey) return;
-    try {
-      const res = await api.get(`/gaming/summary`, { params: { wallet_address: publicKey.toString() } });
-      setSummary(res.data?.totals || {});
-    } catch (e) {
-      console.warn("summary fetch failed", e);
-    }
-  }, [api, publicKey]);
-
+  // ---------- Manual loss form ----------
   const recordLoss = useCallback(async () => {
     if (!publicKey) return setError("Connect wallet first");
     const amt = parseFloat(lossAmount);
@@ -304,6 +321,7 @@ function WalletUI() {
     }
   }, [api, fetchSummary, lossAmount, lossCurrency, publicKey]);
 
+  // On connect
   useEffect(() => {
     if (connected && publicKey) {
       logWalletConnection();
@@ -317,6 +335,7 @@ function WalletUI() {
     }
   }, [connected, publicKey]);
 
+  // ---------- UI ----------
   return (
     <>
       <Card className="card">
