@@ -35,23 +35,21 @@ module.exports = {
 
       // Remove or relax source-map-loader on problematic node_modules
       try {
-        const smLoaderMatcher = (r) => (r && r.use && (
+        const hasSML = (r) => (r && r.use && (
           (Array.isArray(r.use) && r.use.find(u => (typeof u === 'string' && u.includes('source-map-loader')) || (u && u.loader && u.loader.includes('source-map-loader'))))
         )) || (r && r.loader && r.loader.includes && r.loader.includes('source-map-loader'));
 
-        const applyExclude = (rule) => {
-          if (!rule) return;
-          if (smLoaderMatcher(rule)) {
-            rule.exclude = [
-              /node_modules\/superstruct\//,
-              /node_modules\/@walletconnect\//,
-              /node_modules\/cross-fetch\//,
-            ];
-          }
-          if (rule.oneOf && Array.isArray(rule.oneOf)) rule.oneOf.forEach(applyExclude);
-          if (rule.rules && Array.isArray(rule.rules)) rule.rules.forEach(applyExclude);
+        const stripSML = (rules) => {
+          if (!Array.isArray(rules)) return rules;
+          return rules
+            .filter(r => !hasSML(r))
+            .map(r => {
+              if (r.oneOf) r.oneOf = stripSML(r.oneOf);
+              if (r.rules) r.rules = stripSML(r.rules);
+              return r;
+            });
         };
-        (config.module.rules || []).forEach(applyExclude);
+        config.module.rules = stripSML(config.module.rules || []);
       } catch (e) {
         // ignore
       }
