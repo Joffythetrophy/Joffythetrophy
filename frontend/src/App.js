@@ -142,21 +142,21 @@ function WalletUI() {
   }, [connected, publicKey]);
 
   return (
-    <&gt;
-      <Card className="card"&gt;
-        <div className="card-header"&gt;
-          <h2&gt;Wallet</h2&gt;
-          <WalletMultiButton className="wallet-btn" /&gt;
-        </div&gt;
-        {connected &amp;&amp; publicKey ? (
-          <div className="wallet-info"&gt;
-            <div&gt;Connected: {wallet?.adapter?.name}</div&gt;
-            <div className="mono"&gt;{publicKey.toString()}</div&gt;
-          </div&gt;
+    <>
+      <Card className="card">
+        <div className="card-header">
+          <h2>Wallet</h2>
+          <WalletMultiButton className="wallet-btn" />
+        </div>
+        {connected && publicKey ? (
+          <div className="wallet-info">
+            <div>Connected: {wallet?.adapter?.name}</div>
+            <div className="mono">{publicKey.toString()}</div>
+          </div>
         ) : (
-          <div className="muted"&gt;Connect Phantom or Solflare on Devnet</div&gt;
+          <div className="muted">Connect Phantom or Solflare on Devnet</div>
         )}
-      </Card&gt;
+      </Card>
 
       {connected &amp;&amp; (
         <Card className="card"&gt;
