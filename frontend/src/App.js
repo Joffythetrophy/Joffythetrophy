@@ -592,7 +592,7 @@ function App() {
           </div>
         </header>
         <ConnectionProvider endpoint={endpoint}>
-          <WalletProvider wallets={wallets} autoConnect>
+          <WalletProvider wallets={wallets} autoConnect={false}>
             <WalletModalProvider>
               <main className="main">
                 <WalletUI />
