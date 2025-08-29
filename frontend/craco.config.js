@@ -25,11 +25,7 @@ module.exports = {
         })
       );
 
-      // Alias superstruct to root installation to avoid nested path issues
-      config.resolve.alias = Object.assign({}, config.resolve.alias || {}, {
-        superstruct: require.resolve("superstruct"),
-        "@solana/web3.js/node_modules/superstruct": require.resolve("superstruct"),
-      });
+
 
       config.ignoreWarnings = [...(config.ignoreWarnings || []), /Failed to parse source map/];
 
