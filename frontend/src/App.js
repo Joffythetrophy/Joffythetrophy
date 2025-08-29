@@ -18,6 +18,11 @@ import {
 // Solana & Wallet Adapter
 import { clusterApiUrl, LAMPORTS_PER_SOL, PublicKey, SystemProgram, Transaction, VersionedTransaction } from "@solana/web3.js";
 import { ConnectionProvider, WalletProvider, useConnection, useWallet } from "@solana/wallet-adapter-react";
+// Jupiter API (REST) client
+const JUP_BASE = "https://quote-api.jup.ag/v6"; // devnet-compatible
+const JUP_USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"; // devnet USDC (Jupiter uses canonical)
+const JUP_WSOLA = "So11111111111111111111111111111111111111112"; // wrapped SOL mint
+
 import { WalletModalProvider, WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import { PhantomWalletAdapter, SolflareWalletAdapter } from "@solana/wallet-adapter-wallets";
 import "@solana/wallet-adapter-react-ui/styles.css";
