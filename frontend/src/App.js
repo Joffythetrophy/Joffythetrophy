@@ -587,8 +587,11 @@ function App() {
       <div className="container">
         <header className="header">
           <div>
-            <h1 className="title">Solana Devnet Onboarding</h1>
-            <p className="subtitle">Connect wallet • Detect CRT • Send SOL</p>
+            <h1 className="title">Solana Onboarding</h1>
+            <p className="subtitle">Connect wallet • Detect CRT • Swap & Liquidity</p>
+          </div>
+          <div>
+            <Button onClick={() => window.location.reload()} variant="secondary">Reset Wallet</Button>
           </div>
         </header>
         <ConnectionProvider endpoint={endpoint}>
