@@ -138,7 +138,6 @@ function WalletUI() {
       setSolBalance(null);
       setCrtUiAmount(null);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [connected, publicKey]);
 
   return (
