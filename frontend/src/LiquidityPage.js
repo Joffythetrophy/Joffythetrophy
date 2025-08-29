@@ -1,16 +1,22 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { Card } from "./components/ui/card";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { Label } from "./components/ui/label";
 import Decimal from "decimal.js";
-
-// NOTE: We are not importing Orca SDK here yet to avoid impacting main bundle.
-// We'll progressively enhance by lazy-importing inside handlers when user clicks.
+import {
+  getAssociatedTokenAddress,
+  createAssociatedTokenAccountInstruction,
+  getAccount,
+} from "@solana/spl-token";
+import { PublicKey, Transaction } from "@solana/web3.js";
 
 const CRT_MINT = "9pjWtc6x88wrRMXTxkBcNB6YtcN7NNcyzDAfUMfRknty"; // your CRT
 const USDC_DEVNET = "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU"; // common devnet USDC mint
+const JUP_BASE = "https://quote-api.jup.ag/v6"; // Jupiter REST
+
+const explorerTx = (sig) => `https://explorer.solana.com/tx/${sig}?cluster=devnet`;
 
 export default function LiquidityPage() {
   const { connection } = useConnection();
@@ -20,18 +26,102 @@ export default function LiquidityPage() {
   const [seedUSDC, setSeedUSDC] = useState("100");
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
+  const [sigs, setSigs] = useState([]);
+
+  const pushSig = (label, sig) => setSigs((s) => [{ label, sig }, ...s].slice(0, 6));
+
+  // Ensure ATAs exist for CRT and USDC
+  const ensureATAs = useCallback(async () => {
+    if (!publicKey) throw new Error("Connect wallet");
+    const crtMint = new PublicKey(CRT_MINT);
+    const usdcMint = new PublicKey(USDC_DEVNET);
+    const crtAta = await getAssociatedTokenAddress(crtMint, publicKey);
+    const usdcAta = await getAssociatedTokenAddress(usdcMint, publicKey);
+
+    const tx = new Transaction();
+    const infos = await Promise.all([
+      connection.getAccountInfo(crtAta),
+      connection.getAccountInfo(usdcAta),
+    ]);
+    if (!infos[0]) tx.add(createAssociatedTokenAccountInstruction(publicKey, crtAta, publicKey, crtMint));
+    if (!infos[1]) tx.add(createAssociatedTokenAccountInstruction(publicKey, usdcAta, publicKey, usdcMint));
+
+    if (tx.instructions.length) {
+      tx.feePayer = publicKey;
+      tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+      const signed = await signTransaction(tx);
+      const sig = await sendTransaction(signed, connection);
+      await connection.confirmTransaction(sig, "confirmed");
+      pushSig("Create ATAs", sig);
+    }
+    return { crtAta, usdcAta };
+  }, [connection, publicKey, sendTransaction, signTransaction]);
+
+  const getBalances = useCallback(async ({ crtAta, usdcAta }) => {
+    let crt = 0, usdc = 0;
+    try { const a = await getAccount(connection, crtAta); crt = Number(a.amount) / 1e9; } catch {}
+    try { const b = await getAccount(connection, usdcAta); usdc = Number(b.amount) / 1e6; } catch {}
+    return { crt, usdc };
+  }, [connection]);
+
+  const jupSwap = useCallback(async ({ inMint, outMint, uiAmount }) => {
+    if (!publicKey) throw new Error("Connect wallet");
+    const amount = Math.floor(uiAmount * 1e9); // assume 9 for input; OK for SOL/CRT. For USDC use 1e6 in quote path below
+    // Fetch decimals-aware amount: special-case USDC input
+    const smallest = outMint === USDC_DEVNET ? Math.floor(uiAmount * 1e6) : Math.floor(uiAmount * 1e9);
+    const res = await fetch(`${JUP_BASE}/quote?inputMint=${inMint}&outputMint=${outMint}&amount=${smallest}&slippageBps=100`);
+    const quote = await res.json();
+    if (!quote || !quote.outAmount) throw new Error("No route found");
+
+    const swapRes = await fetch(`${JUP_BASE}/swap`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ quoteResponse: quote, userPublicKey: publicKey.toString(), wrapAndUnwrapSol: true }),
+    });
+    const txData = await swapRes.json();
+    if (!txData || !txData.swapTransaction) throw new Error("Swap build failed");
+    const buf = Buffer.from(txData.swapTransaction, "base64");
+    const { VersionedTransaction } = await import("@solana/web3.js");
+    const tx = VersionedTransaction.deserialize(buf);
+    const sig = await sendTransaction(tx, connection);
+    await connection.confirmTransaction(sig, "confirmed");
+    return sig;
+  }, [publicKey, connection, sendTransaction]);
+
+  const onPrepareSeed = useCallback(async () => {
+    try {
+      if (!connected || !publicKey) throw new Error("Connect wallet on devnet");
+      setBusy(true); setStatus("Preparing seed balances (CRT/USDC) via Jupiter…");
+      const { crtAta, usdcAta } = await ensureATAs();
+      const { crt, usdc } = await getBalances({ crtAta, usdcAta });
+      const needCRT = Math.max(0, parseFloat(seedCRT || "0") - crt);
+      const needUSDC = Math.max(0, parseFloat(seedUSDC || "0") - usdc);
+
+      if (needCRT > 0) {
+        setStatus((s) => s + `\nSwapping SOL → CRT (${needCRT})…`);
+        const sig = await jupSwap({ inMint: "So11111111111111111111111111111111111111112", outMint: CRT_MINT, uiAmount: needCRT });
+        pushSig("Swap SOL→CRT", sig);
+      }
+      if (needUSDC > 0) {
+        setStatus((s) => s + `\nSwapping SOL → USDC (${needUSDC})…`);
+        const sig = await jupSwap({ inMint: "So11111111111111111111111111111111111111112", outMint: USDC_DEVNET, uiAmount: needUSDC });
+        pushSig("Swap SOL→USDC", sig);
+      }
+      setStatus((s) => s + "\nSeed prepared.");
+    } catch (e) {
+      console.error(e);
+      setStatus(`Error: ${e.message || e}`);
+    } finally {
+      setBusy(false);
+    }
+  }, [connected, publicKey, ensureATAs, getBalances, seedCRT, seedUSDC, jupSwap]);
 
   const onCreatePoolAndDeposit = useCallback(async () => {
-    if (!connected || !publicKey) {
-      setStatus("Connect wallet on devnet first");
-      return;
-    }
-    setBusy(true);
-    setStatus("Loading Orca SDK…");
+    if (!connected || !publicKey) { setStatus("Connect wallet on devnet first"); return; }
+    setBusy(true); setStatus("Loading Orca SDK…");
     try {
-      const [{ WhirlpoolContext, ORCA_WHIRLPOOL_PROGRAM_ID, buildWhirlpoolClient, PriceMath, PDAUtil, WhirlpoolIx, IGNORE_CACHE, WhirlpoolClient } , anchor, web3] = await Promise.all([
+      const [{ WhirlpoolContext, ORCA_WHIRLPOOL_PROGRAM_ID, buildWhirlpoolClient, PriceMath, PDAUtil, IGNORE_CACHE } , web3] = await Promise.all([
         import("@orca-so/whirlpools-sdk"),
-        import("@coral-xyz/anchor"),
         import("@solana/web3.js"),
       ]);
 
@@ -56,46 +146,51 @@ export default function LiquidityPage() {
 
       // Try fetch pool
       let pool;
-      try {
-        pool = await client.getPool(whirlpoolPda.publicKey, IGNORE_CACHE);
-      } catch {}
+      try { pool = await client.getPool(whirlpoolPda.publicKey, IGNORE_CACHE); } catch {}
 
       if (!pool) {
         const tx = await client.createPool(ctx.getConfig().publicKey, tokenA, tokenB, tickSpacing, sqrtPriceX64);
         const signed = await signTransaction(tx);
         const sig = await sendTransaction(signed, connection);
         await connection.confirmTransaction(sig, "confirmed");
-        setStatus(`Pool created. Sig: ${sig}`);
+        pushSig("Create Pool", sig);
+        setStatus(`Pool created.`);
         pool = await client.getPool(whirlpoolPda.publicKey, IGNORE_CACHE);
       } else {
         setStatus(`Pool exists: ${whirlpoolPda.publicKey.toString()}`);
       }
 
-      // Create a wide position around current tick
+      // Open a wide position
       const state = await pool.refreshData();
       const currentTick = state.tickCurrentIndex;
       const lower = Math.floor((currentTick - 64 * 100) / 64) * 64;
       const upper = Math.ceil((currentTick + 64 * 100) / 64) * 64;
 
       const positionMint = web3.Keypair.generate();
-      const liquidityAmount = new Decimal(1_000_000); // placeholder; SDK computes needed token amounts internally when depositing exact tokens
+      const liquidityAmount = new Decimal(1_000_000);
 
       setStatus("Opening position…");
       const openTx = await pool.openPosition(lower, upper, { liquidityAmount, tokenAmountA: null, tokenAmountB: null }, publicKey, positionMint);
       openTx.partialSign(positionMint);
-      const openSig = await sendTransaction(await signTransaction(openTx), connection);
+      const signedOpen = await signTransaction(openTx);
+      const openSig = await sendTransaction(signedOpen, connection);
       await connection.confirmTransaction(openSig, "confirmed");
-      setStatus(`Position minted. Sig: ${openSig}`);
+      pushSig("Open Position", openSig);
+      setStatus(`Position opened.`);
 
-      // In a full implementation, convert seedCRT/seedUSDC via Jupiter as needed and add deposit instructions
-      setStatus((s) => s + "\nDeposit step to be wired after seed swaps (Jupiter)." );
+      setStatus((s) => s + "\nNext: use Prepare Seed then Deposit Liquidity (will be added)." );
     } catch (e) {
       console.error(e);
       setStatus(`Error: ${e.message || e}`);
     } finally {
       setBusy(false);
     }
-  }, [connected, connection, publicKey, sendTransaction, signTransaction, seedCRT, seedUSDC]);
+  }, [connected, connection, publicKey, sendTransaction, signTransaction]);
+
+  // Placeholder for deposit (next step): will compute exact token amounts and call increaseLiquidity
+  const onDeposit = useCallback(async () => {
+    setStatus("Deposit flow will be added after seed swaps (Jupiter). For now, verify pool creation works.");
+  }, []);
 
   return (
     <div className="container" style={{ padding: 24 }}>
@@ -112,12 +207,30 @@ export default function LiquidityPage() {
             <Input value={seedUSDC} onChange={(e) => setSeedUSDC(e.target.value)} />
           </div>
           <div className="self-end">
-            <Button disabled={!connected || busy} onClick={onCreatePoolAndDeposit}>
-              {busy ? "Processing…" : "Create Pool & Deposit"}
-            </Button>
+            <div className="row">
+              <Button disabled={!connected || busy} onClick={onPrepareSeed}>
+                {busy ? "Working…" : "Prepare Seed (Jupiter)"}
+              </Button>
+              <Button disabled={!connected || busy} onClick={onCreatePoolAndDeposit}>
+                {busy ? "Processing…" : "Create Pool & Position"}
+              </Button>
+              <Button disabled={!connected || busy} onClick={onDeposit}>
+                Deposit Liquidity
+              </Button>
+            </div>
           </div>
         </div>
         {status && <div style={{ marginTop: 12 }} className="muted">{status}</div>}
+        {sigs.length > 0 && (
+          <div style={{ marginTop: 12 }}>
+            <h4 className="mb-2">Recent Transactions</h4>
+            {sigs.map(({ label, sig }, i) => (
+              <div key={i} className="pill" style={{ marginBottom: 6 }}>
+                {label}: <a href={explorerTx(sig)} target="_blank" rel="noreferrer">{sig.slice(0, 10)}…</a>
+              </div>
+            ))}
+          </div>
+        )}
       </Card>
     </div>
   );
