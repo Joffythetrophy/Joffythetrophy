@@ -12,29 +12,29 @@ import {
 } from "@solana/spl-token";
 import { PublicKey, Transaction } from "@solana/web3.js";
 
-const CRT_MINT = "9pjWtc6x88wrRMXTxkBcNB6YtcN7NNcyzDAfUMfRknty"; // your CRT
-const USDC_DEVNET = "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU"; // common devnet USDC mint
+const CRT_MINT = "Aay7He9wCubaREq8EGm4BvEZiL77rPC2BfnjgJ5qzdxu"; // mainnet CRT
+const USDC_MAINNET = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"; // mainnet USDC
 const JUP_BASE = "https://quote-api.jup.ag/v6"; // Jupiter REST
 
-const explorerTx = (sig) => `https://explorer.solana.com/tx/${sig}?cluster=devnet`;
+const explorerTx = (sig) => `https://explorer.solana.com/tx/${sig}?cluster=mainnet-beta`;
 
 export default function LiquidityPage() {
   const { connection } = useConnection();
   const { publicKey, signTransaction, sendTransaction, connected } = useWallet();
 
-  const [seedCRT, setSeedCRT] = useState("20");
-  const [seedUSDC, setSeedUSDC] = useState("100");
+  const [seedCRT, setSeedCRT] = useState("2000");
+  const [seedUSDC, setSeedUSDC] = useState("10");
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
   const [sigs, setSigs] = useState([]);
 
-  const pushSig = (label, sig) => setSigs((s) => [{ label, sig }, ...s].slice(0, 6));
+  const pushSig = (label, sig) => setSigs((s) => [{ label, sig }, ...s].slice(0, 8));
 
   // Ensure ATAs exist for CRT and USDC
   const ensureATAs = useCallback(async () => {
     if (!publicKey) throw new Error("Connect wallet");
     const crtMint = new PublicKey(CRT_MINT);
-    const usdcMint = new PublicKey(USDC_DEVNET);
+    const usdcMint = new PublicKey(USDC_MAINNET);
     const crtAta = await getAssociatedTokenAddress(crtMint, publicKey);
     const usdcAta = await getAssociatedTokenAddress(usdcMint, publicKey);
 
@@ -66,9 +66,9 @@ export default function LiquidityPage() {
 
   const jupSwap = useCallback(async ({ inMint, outMint, uiAmount }) => {
     if (!publicKey) throw new Error("Connect wallet");
-    const amount = Math.floor(uiAmount * 1e9); // assume 9 for input; OK for SOL/CRT. For USDC use 1e6 in quote path below
-    // Fetch decimals-aware amount: special-case USDC input
-    const smallest = outMint === USDC_DEVNET ? Math.floor(uiAmount * 1e6) : Math.floor(uiAmount * 1e9);
+    // amount in smallest unit based on input token (assume CRT 9d, USDC 6d, SOL 9d)
+    const dec = outMint === USDC_MAINNET ? 6 : 9;
+    const smallest = Math.floor(uiAmount * 10 ** dec);
     const res = await fetch(`${JUP_BASE}/quote?inputMint=${inMint}&outputMint=${outMint}&amount=${smallest}&slippageBps=100`);
     const quote = await res.json();
     if (!quote || !quote.outAmount) throw new Error("No route found");
@@ -90,7 +90,7 @@ export default function LiquidityPage() {
 
   const onPrepareSeed = useCallback(async () => {
     try {
-      if (!connected || !publicKey) throw new Error("Connect wallet on devnet");
+      if (!connected || !publicKey) throw new Error("Connect wallet on mainnet");
       setBusy(true); setStatus("Preparing seed balances (CRT/USDC) via Jupiter…");
       const { crtAta, usdcAta } = await ensureATAs();
       const { crt, usdc } = await getBalances({ crtAta, usdcAta });
@@ -104,20 +104,18 @@ export default function LiquidityPage() {
       }
       if (needUSDC > 0) {
         setStatus((s) => s + `\nSwapping SOL → USDC (${needUSDC})…`);
-        const sig = await jupSwap({ inMint: "So11111111111111111111111111111111111111112", outMint: USDC_DEVNET, uiAmount: needUSDC });
+        const sig = await jupSwap({ inMint: "So11111111111111111111111111111111111111112", outMint: USDC_MAINNET, uiAmount: needUSDC });
         pushSig("Swap SOL→USDC", sig);
       }
       setStatus((s) => s + "\nSeed prepared.");
     } catch (e) {
       console.error(e);
       setStatus(`Error: ${e.message || e}`);
-    } finally {
-      setBusy(false);
-    }
+    } finally { setBusy(false); }
   }, [connected, publicKey, ensureATAs, getBalances, seedCRT, seedUSDC, jupSwap]);
 
-  const onCreatePoolAndDeposit = useCallback(async () => {
-    if (!connected || !publicKey) { setStatus("Connect wallet on devnet first"); return; }
+  const onCreatePoolAndPosition = useCallback(async () => {
+    if (!connected || !publicKey) { setStatus("Connect wallet on mainnet first"); return; }
     setBusy(true); setStatus("Loading Orca SDK…");
     try {
       const [{ WhirlpoolContext, ORCA_WHIRLPOOL_PROGRAM_ID, buildWhirlpoolClient, PriceMath, PDAUtil, IGNORE_CACHE } , web3] = await Promise.all([
@@ -136,7 +134,7 @@ export default function LiquidityPage() {
 
       // Parameters
       const tokenA = new web3.PublicKey(CRT_MINT);
-      const tokenB = new web3.PublicKey(USDC_DEVNET);
+      const tokenB = new web3.PublicKey(USDC_MAINNET);
       const tickSpacing = 64; // 0.30%
       const price = 5; // 1 CRT = 5 USDC
 
@@ -156,9 +154,7 @@ export default function LiquidityPage() {
         pushSig("Create Pool", sig);
         setStatus(`Pool created.`);
         pool = await client.getPool(whirlpoolPda.publicKey, IGNORE_CACHE);
-      } else {
-        setStatus(`Pool exists: ${whirlpoolPda.publicKey.toString()}`);
-      }
+      } else { setStatus(`Pool exists: ${whirlpoolPda.publicKey.toString()}`); }
 
       // Open a wide position
       const state = await pool.refreshData();
@@ -178,25 +174,23 @@ export default function LiquidityPage() {
       pushSig("Open Position", openSig);
       setStatus(`Position opened.`);
 
-      setStatus((s) => s + "\nNext: use Prepare Seed then Deposit Liquidity (will be added)." );
-    } catch (e) {
-      console.error(e);
-      setStatus(`Error: ${e.message || e}`);
-    } finally {
-      setBusy(false);
-    }
+      setStatus((s) => s + "\nNext: Deposit Liquidity and Remove Liquidity buttons will be enabled in the next step.");
+    } catch (e) { console.error(e); setStatus(`Error: ${e.message || e}`); } finally { setBusy(false); }
   }, [connected, connection, publicKey, sendTransaction, signTransaction]);
 
-  // Placeholder for deposit (next step): will compute exact token amounts and call increaseLiquidity
   const onDeposit = useCallback(async () => {
-    setStatus("Deposit flow will be added after seed swaps (Jupiter). For now, verify pool creation works.");
+    setStatus("Deposit flow will be added next.");
+  }, []);
+
+  const onRemove = useCallback(async () => {
+    setStatus("Remove liquidity flow will be added next.");
   }, []);
 
   return (
     <div className="container" style={{ padding: 24 }}>
       <Card className="card">
-        <h2 className="mb-2">CRT/USDC Liquidity (Devnet)</h2>
-        <p className="muted">Create Orca Whirlpool (0.30% fee) at 1 CRT = 5 USDC, then deposit.</p>
+        <h2 className="mb-2">CRT/USDC Liquidity (Mainnet)</h2>
+        <p className="muted">Create Orca Whirlpool (0.30% fee) at 1 CRT = 5 USDC, then manage liquidity.</p>
         <div className="grid">
           <div>
             <Label>Seed CRT</Label>
@@ -211,12 +205,11 @@ export default function LiquidityPage() {
               <Button disabled={!connected || busy} onClick={onPrepareSeed}>
                 {busy ? "Working…" : "Prepare Seed (Jupiter)"}
               </Button>
-              <Button disabled={!connected || busy} onClick={onCreatePoolAndDeposit}>
+              <Button disabled={!connected || busy} onClick={onCreatePoolAndPosition}>
                 {busy ? "Processing…" : "Create Pool & Position"}
               </Button>
-              <Button disabled={!connected || busy} onClick={onDeposit}>
-                Deposit Liquidity
-              </Button>
+              <Button disabled={!connected || busy} onClick={onDeposit}>Deposit Liquidity</Button>
+              <Button disabled={!connected || busy} onClick={onRemove}>Remove Liquidity</Button>
             </div>
           </div>
         </div>
