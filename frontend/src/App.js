@@ -418,6 +418,33 @@ function WalletUI() {
             <Button variant="secondary" onClick={() => { fetchSol(); fetchCRT(); fetchSummary(); }} disabled={isLoading}>
               {isLoading ? "Refreshing…" : "Refresh"}
             </Button>
+      {connected && (
+        <Card className="card">
+          <h3 className="mb-2">Devnet Tools</h3>
+          <div className="row">
+            <Button
+              onClick={async () => {
+                try {
+                  setIsLoading(true);
+                  const sig = await connection.requestAirdrop(publicKey, LAMPORTS_PER_SOL);
+                  await connection.confirmTransaction(sig, "confirmed");
+                  await fetchSol();
+                  alert("Airdropped 1 SOL to your devnet wallet.");
+                } catch (e) {
+                  console.error(e);
+                  setError("Airdrop failed");
+                } finally {
+                  setIsLoading(false);
+                }
+              }}
+              disabled={!connected || isLoading}
+            >
+              {isLoading ? "Requesting…" : "Airdrop 1 SOL (Devnet)"}
+            </Button>
+          </div>
+        </Card>
+      )}
+
           </div>
           <div className="grid">
             <div>
