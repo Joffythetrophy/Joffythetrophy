@@ -6,6 +6,7 @@ import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { Card } from "./components/ui/card";
 import { Label } from "./components/ui/label";
+import { AspectRatio } from "./components/ui/aspect-ratio";
 
 // Solana & Wallet Adapter
 import { clusterApiUrl, LAMPORTS_PER_SOL, PublicKey, SystemProgram, Transaction } from "@solana/web3.js";
