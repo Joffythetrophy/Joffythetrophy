@@ -38,7 +38,7 @@ const WSOL_MINT = "So11111111111111111111111111111111111111112"; // wSOL mint
 
 const API_BASE = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const READ_ONLY_DEFAULT = "DwK4nUM8TKWAxEBKTG6mWA6PBRDHFPA3beLB18pwCekq"; // treasury default
-const CRT_MAINNET_MINT = "Aay7He9wCubaREq8EGm4BvEZiL77rPC2BfnjgJ5qzdxu"; // user's CRT mint
+const CRT_MAINNET_MINT = "9pjWtc6x88wrRMXTxkBcNB6YtcN7NNcyzDAfUMfRknty"; // user's CRT mint (mainnet)
 
 function WalletUI({ network }) {
   const { connection } = useConnection();
