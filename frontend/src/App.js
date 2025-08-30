@@ -182,10 +182,10 @@ function WalletUI({ network }) {
     } catch (e) { console.warn("ro balance", e); setRoDetails({ crt: [], usdc: [] }); }
   }, [connection, roAddress]);
 
+  // Discover tokens by program for any mint under address
   const discoverTokensForAddress = useCallback(async () => {
     try {
       const addr = new PublicKey(roAddress);
-      // Get ALL token accounts (not just by mint)
       const parsed = await connection.getParsedTokenAccountsByOwner(addr, { programId: TOKEN_PROGRAM_ID });
       const summary = {};
       for (const it of parsed.value) {
@@ -198,7 +198,6 @@ function WalletUI({ network }) {
         summary[mintStr].total += ui;
         summary[mintStr].accounts.push({ account: it.pubkey.toString(), raw: tok.amount, dec });
       }
-      // Convert to sorted array by total desc
       const arr = Object.entries(summary).map(([mint, data]) => ({ mint, ...data })).sort((a,b) => b.total - a.total);
       setRoDetails({ crt: arr, usdc: [] });
     } catch (e) { console.warn('discover tokens', e); }
