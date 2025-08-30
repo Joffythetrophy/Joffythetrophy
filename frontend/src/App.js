@@ -299,6 +299,21 @@ function WalletUI({ network }) {
           <div className="pill">CRT: {roCRT ?? '—'}</div>
           <div className="pill">USDC: {roUSDC ?? '—'}</div>
         </div>
+        {roDetails.crt.length === 0 && (
+          <div className="muted" style={{marginTop:8}}>No parsed CRT token accounts found for this address. Double-check the mint and address.
+          </div>
+        )}
+        {roDetails.crt.length > 0 && (
+          <div style={{ marginTop: 8 }}>
+            <h4 className="mb-2">CRT Token Accounts</h4>
+            {roDetails.crt.map((r, i) => (
+              <div key={i} className="mono" style={{fontSize:12, opacity:0.8}}>
+                {r.account} • raw {r.raw} • dec {r.dec}
+              </div>
+            ))}
+          </div>
+        )}
+
       </Card>
 
       <Card className="card">
