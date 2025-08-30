@@ -113,19 +113,29 @@ function WalletUI({ network }) {
     try {
       setIsLoading(true);
       const mintPk = new PublicKey(crtMint);
-      const ata = await getAssociatedTokenAddress(mintPk, publicKey);
-      const acctInfo = await connection.getAccountInfo(ata);
-      if (!acctInfo) { setCrtUiAmount(0); return; }
-      const tokenAccount = await getAccount(connection, ata);
-      // fetch decimals
+      // Robust: sum across ALL token accounts for this mint (ATA or not)
+      const resp = await connection.getParsedTokenAccountsByOwner(publicKey, { mint: mintPk });
+      let totalRaw = 0n;
       let decimals = 9;
-      try {
-        const parsedMint = await connection.getParsedAccountInfo(mintPk);
-        if (parsedMint.value?.data && parsedMint.value.data.parsed?.info?.decimals != null) {
-          decimals = parsedMint.value.data.parsed.info.decimals;
-        }
-      } catch {}
-      const ui = Number(tokenAccount.amount) / Math.pow(10, decimals || 0);
+      // try to fetch decimals from any account or mint
+      for (const it of resp.value) {
+        const info = it.account.data.parsed.info.tokenAmount;
+        if (typeof info.decimals === 'number') decimals = info.decimals;
+        totalRaw += BigInt(info.amount);
+      }
+      if (resp.value.length === 0) {
+        // fallback to ATA just in case it exists but unparsed path failed
+        try {
+          const ata = await getAssociatedTokenAddress(mintPk, publicKey);
+          const acctInfo = await connection.getParsedAccountInfo(ata);
+          const info = acctInfo.value?.data?.parsed?.info?.tokenAmount;
+          if (info) {
+            decimals = typeof info.decimals === 'number' ? info.decimals : decimals;
+            totalRaw = BigInt(info.amount || '0');
+          }
+        } catch {}
+      }
+      const ui = Number(totalRaw) / Math.pow(10, decimals || 0);
       setCrtUiAmount(ui);
     } catch (e) {
       console.warn("CRT detection error", e);
