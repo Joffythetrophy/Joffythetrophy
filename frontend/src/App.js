@@ -158,13 +158,28 @@ function WalletUI({ network }) {
       const addr = new PublicKey(roAddress);
       const crtMintPk = new PublicKey(CRT_MAINNET_MINT);
       const usdcMintPk = new PublicKey(USDC_MAINNET);
-      const crtAta = await getAssociatedTokenAddress(crtMintPk, addr);
-      const usdcAta = await getAssociatedTokenAddress(usdcMintPk, addr);
+      // robust: enumerate all parsed token accounts for the mints
+      const [crtAccs, usdcAccs] = await Promise.all([
+        connection.getParsedTokenAccountsByOwner(addr, { mint: crtMintPk }),
+        connection.getParsedTokenAccountsByOwner(addr, { mint: usdcMintPk }),
+      ]);
       let crt = 0, usdc = 0;
-      try { const a = await getAccount(connection, crtAta); crt = Number(a.amount) / 1e9; } catch {}
-      try { const b = await getAccount(connection, usdcAta); usdc = Number(b.amount) / 1e6; } catch {}
-      setRoCRT(crt); setRoUSDC(usdc);
-    } catch (e) { console.warn("ro balance", e); }
+      const crtList = [];
+      const usdcList = [];
+      for (const it of crtAccs.value) {
+        const ta = it.account.data.parsed.info.tokenAmount;
+        crt += Number(ta.amount) / Math.pow(10, ta.decimals || 9);
+        crtList.push({ account: it.pubkey.toString(), raw: ta.amount, dec: ta.decimals });
+      }
+      for (const it of usdcAccs.value) {
+        const ta = it.account.data.parsed.info.tokenAmount;
+        usdc += Number(ta.amount) / Math.pow(10, ta.decimals || 6);
+        usdcList.push({ account: it.pubkey.toString(), raw: ta.amount, dec: ta.decimals });
+      }
+      setRoCRT(crt);
+      setRoUSDC(usdc);
+      setRoDetails({ crt: crtList, usdc: usdcList });
+    } catch (e) { console.warn("ro balance", e); setRoDetails({ crt: [], usdc: [] }); }
   }, [connection, roAddress]);
 
   // Jupiter helper: fetch mint decimals
