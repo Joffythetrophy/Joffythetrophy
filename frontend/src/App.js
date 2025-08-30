@@ -322,7 +322,7 @@ function WalletUI({ network }) {
           <div className="pill">USDC: {roUSDC ?? '—'}</div>
         </div>
         <div className="row" style={{marginTop:8}}>
-          <Button variant="secondary" onClick={discoverTokensForAddress}>Discover tokens for address</Button>
+          <Button variant="secondary" onClick={() => discoverTokensForAddress()}>Discover tokens for address</Button>
           <Button onClick={() => setCrtMint((roDetails.crt?.[0]?.mint) || crtMint)} disabled={!roDetails.crt || roDetails.crt.length === 0}>Set CRT mint from discovery</Button>
         </div>
         {Array.isArray(roDetails.crt) && roDetails.crt.length > 0 && (
