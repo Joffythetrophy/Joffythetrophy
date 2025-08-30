@@ -178,6 +178,10 @@ function WalletUI({ network }) {
       }
       setRoCRT(crt);
       setRoUSDC(usdc);
+      setRoDetails({ crt: crtList, usdc: usdcList });
+    } catch (e) { console.warn("ro balance", e); setRoDetails({ crt: [], usdc: [] }); }
+  }, [connection, roAddress]);
+
   const discoverTokensForAddress = useCallback(async () => {
     try {
       const addr = new PublicKey(roAddress);
