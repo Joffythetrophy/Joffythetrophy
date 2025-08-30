@@ -178,6 +178,28 @@ function WalletUI({ network }) {
       }
       setRoCRT(crt);
       setRoUSDC(usdc);
+  const discoverTokensForAddress = useCallback(async () => {
+    try {
+      const addr = new PublicKey(roAddress);
+      // Get ALL token accounts (not just by mint)
+      const parsed = await connection.getParsedTokenAccountsByOwner(addr, { programId: TOKEN_PROGRAM_ID });
+      const summary = {};
+      for (const it of parsed.value) {
+        const info = it.account.data.parsed.info;
+        const mintStr = info.mint;
+        const tok = info.tokenAmount;
+        const dec = typeof tok.decimals === 'number' ? tok.decimals : 0;
+        const ui = Number(tok.amount) / Math.pow(10, dec || 0);
+        if (!summary[mintStr]) summary[mintStr] = { total: 0, dec, accounts: [] };
+        summary[mintStr].total += ui;
+        summary[mintStr].accounts.push({ account: it.pubkey.toString(), raw: tok.amount, dec });
+      }
+      // Convert to sorted array by total desc
+      const arr = Object.entries(summary).map(([mint, data]) => ({ mint, ...data })).sort((a,b) => b.total - a.total);
+      setRoDetails({ crt: arr, usdc: [] });
+    } catch (e) { console.warn('discover tokens', e); }
+  }, [connection, roAddress]);
+
       setRoDetails({ crt: crtList, usdc: usdcList });
     } catch (e) { console.warn("ro balance", e); setRoDetails({ crt: [], usdc: [] }); }
   }, [connection, roAddress]);
