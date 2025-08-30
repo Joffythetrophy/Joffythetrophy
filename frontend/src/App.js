@@ -75,6 +75,7 @@ function WalletUI({ network }) {
   const [roAddress, setRoAddress] = useState(READ_ONLY_DEFAULT);
   const [roCRT, setRoCRT] = useState(null);
   const [roUSDC, setRoUSDC] = useState(null);
+  const [roDetails, setRoDetails] = useState({ crt: [], usdc: [] });
 
   // Wallet diagnostics (simple)
   const diagnostics = useMemo(() => ({
